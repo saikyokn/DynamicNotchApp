@@ -1,0 +1,50 @@
+name: Build Dynamic Notch IPA
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.2'
+
+      - name: Build App Archive
+        run: |
+          xcodebuild -project DynamicNotchApp.xcodeproj \
+                     -scheme DynamicNotchApp \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -archivePath build/DynamicNotchApp.xcarchive \
+                     archive \
+                     CODE_SIGN_IDENTITY="" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGNING_ALLOWED=NO
+
+      - name: Package into IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/DynamicNotchApp.xcarchive/Products/Applications/*.app Payload/
+          zip -r DynamicNotch.ipa Payload
+          rm -rf Payload build
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DynamicNotch-IPA
+          path: DynamicNotch.ipa
