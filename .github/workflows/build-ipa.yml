@@ -1,4 +1,4 @@
-name: Build Dynamic Notch IPA
+name: Build Simulator Package for Appetize
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-ipa:
+  build-simulator:
     runs-on: macos-latest
 
     steps:
@@ -19,27 +19,31 @@ jobs:
       - name: Generate Xcode Project
         run: xcodegen generate
 
-      - name: Build App Archive
+      - name: Build for iOS Simulator
         run: |
           xcodebuild -project DynamicNotchApp.xcodeproj \
                      -scheme DynamicNotchApp \
                      -configuration Release \
-                     -sdk iphoneos \
-                     -archivePath build/DynamicNotchApp.xcarchive \
-                     archive \
+                     -sdk iphonesimulator \
+                     -derivedDataPath build \
                      CODE_SIGN_IDENTITY="" \
                      CODE_SIGNING_REQUIRED=NO \
                      CODE_SIGNING_ALLOWED=NO
 
-      - name: Package into IPA
+      - name: Package into Zip for Appetize
         run: |
           mkdir -p Payload
-          cp -r build/DynamicNotchApp.xcarchive/Products/Applications/*.app Payload/
-          zip -r DynamicNotch.ipa Payload
+          APP_PATH=$(find build/Build/Products/Release-iphonesimulator -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: .app file not found!"
+            exit 1
+          fi
+          cp -r "$APP_PATH" Payload/
+          zip -r DynamicNotch-Simulator.zip Payload
           rm -rf Payload build
 
-      - name: Upload IPA Artifact
+      - name: Upload Simulator Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DynamicNotch-IPA
-          path: DynamicNotch.ipa
+          name: DynamicNotch-Simulator
+          path: DynamicNotch-Simulator.zip
